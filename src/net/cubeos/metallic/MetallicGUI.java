@@ -25,20 +25,27 @@ public class MetallicGUI extends JFrame {
 		content.add(new JEditorPane());
 		setExtendedState(MAXIMIZED_BOTH);
 		
+		final JFrame herpDerp = this;
+		
 		MenuBar menu = new MenuBar();
 		
 		Menu fileMenu = new Menu();
 		fileMenu.setLabel("File");
 		MenuItem openButton = new MenuItem("Open");
 		openButton.setShortcut(new MenuShortcut(KeyEvent.VK_O));
+		
+		
+		
 		fileMenu.add(openButton);
 		
 		MenuItem saveButton = new MenuItem("Save");
 		saveButton.setShortcut(new MenuShortcut(KeyEvent.VK_S));
-		/*saveButton.addActionListener(new ActionListener() {public void actionPerformed(ActionEvent e) {
+		
+		saveButton.addActionListener(new ActionListener() {public void actionPerformed(ActionEvent e) {
 			JFileChooser chooser = new JFileChooser("Open...");
-			int returnVal = chooser.showOpenDialog();
-		}});*/
+			int returnVal = chooser.showOpenDialog(herpDerp);
+			if (returnVal==JFileChooser.APPROVE_OPTION) System.out.print("User picked " + chooser.getSelectedFile().getName());
+		}});
 		fileMenu.add(saveButton);
 		
 		menu.add(fileMenu);
