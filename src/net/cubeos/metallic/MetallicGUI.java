@@ -13,10 +13,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.swing.*;
 import javax.swing.text.*;
+
+import net.cubeos.metallic.FileInfo.FileModifiedException;
 
 public class MetallicGUI extends JFrame {
 
@@ -25,21 +28,36 @@ public class MetallicGUI extends JFrame {
 	 */
 	private static final long serialVersionUID = 2239551627744634009L;
 	private JTabbedPane tabs;
-	private HashMap<String,OpenedFile> files;
+	private ArrayList<FileInfo> fileByIndex;
+	private ArrayList<JEditorPane> editorWindows;
 	
 	public MetallicGUI()
 	{
 		super("Metallic");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setExtendedState(MAXIMIZED_BOTH);
-		files = new HashMap<String,OpenedFile>();
+		fileByIndex = new ArrayList<FileInfo>();
 		tabs = new JTabbedPane();
+		editorWindows = new ArrayList<JEditorPane>();
 		
 		MenuBar menu = new MenuBar();
 		
 		Menu fileMenu = new Menu();
 		fileMenu.setLabel("File");
-		MenuItem openButton = new MenuItem("Open");
+		
+		MenuItem newButton = new MenuItem("New");
+		newButton.setShortcut(new MenuShortcut(KeyEvent.VK_N));
+		newButton.addActionListener(new ActionListener() {public void actionPerformed(ActionEvent e) {
+			JFileChooser chooser = new JFileChooser("New file...");
+			int returnVal = chooser.showSaveDialog(getContentPane());
+			if (returnVal==JFileChooser.APPROVE_OPTION)
+			{
+				JPanel newTab = openTab(chooser.getSelectedFile());
+			}
+		}});
+		fileMenu.add(newButton);
+		
+		MenuItem openButton = new MenuItem("Open...");
 		openButton.setShortcut(new MenuShortcut(KeyEvent.VK_O));
 		
 		openButton.addActionListener(new ActionListener() {public void actionPerformed(ActionEvent e) {
@@ -54,6 +72,8 @@ public class MetallicGUI extends JFrame {
 		}});
 		fileMenu.add(openButton);
 		
+		fileMenu.addSeparator();
+		
 		MenuItem saveButton = new MenuItem("Save");
 		saveButton.setShortcut(new MenuShortcut(KeyEvent.VK_S));	//TODO add save handler
 		
@@ -62,9 +82,19 @@ public class MetallicGUI extends JFrame {
 			int returnVal = chooser.showSaveDialog(getContentPane());
 			if (returnVal==JFileChooser.APPROVE_OPTION)
 			{
-				
+				try {
+					FileManager.getFileInfo(chooser.getSelectedFile().getAbsolutePath()).save(getCurrentTextPane().getText());
+				} catch(FileModifiedException fme)
+				{
+					JOptionPane.showConfirmDialog(getContentPane(), "This file has been modified since you opened it. Are you sure you want to continue?", "Confirm file overwrite",JOptionPane.QUESTION_MESSAGE);
+				} catch (SecurityException se) {
+					JOptionPane.showMessageDialog(getContentPane(), "Unable to save file - Permission denied.", "Error", JOptionPane.ERROR_MESSAGE);
+				} catch (IOException ioe) {
+					JOptionPane.showMessageDialog(getContentPane(), "Unable to open file.", "Error", JOptionPane.ERROR_MESSAGE);
+				}
 			}
 		}});
+		fileMenu.add(saveButton);
 		
 		MenuItem saveAsButton = new MenuItem("Save as...");
 		saveAsButton.setShortcut(new MenuShortcut(KeyEvent.VK_S,true));
@@ -82,6 +112,11 @@ public class MetallicGUI extends JFrame {
 		setVisible(true);
 	}
 	
+	public JEditorPane getCurrentTextPane()
+	{
+		return editorWindows.get(getCurrentTab());
+	}
+	
 	public boolean saveTab()
 	{
 		return saveTab(getCurrentTab());
@@ -92,10 +127,9 @@ public class MetallicGUI extends JFrame {
 		return false;
 	}
 	
-	public OpenedFile getFileInfo(String name)
+	public FileInfo getFileInfo(String filePath)
 	{
-		if (files.get(name)==null) return null;
-		return files.get(name);
+		return FileManager.getFileInfo(filePath);
 	}
 	
 	public int getCurrentTab()
@@ -109,33 +143,27 @@ public class MetallicGUI extends JFrame {
 		{
 			try
 			{
-				String buffer = "";
-				FileReader fr = new FileReader(f);
-				while (true)
-				{
-					int next = fr.read();
-					if (next==-1) break;
-					buffer += (char)next;
-				}	//this can't be the best way to do this
-				
+				FileInfo opened = FileManager.loadFile(f);
 				JPanel tabContent = new JPanel();
 				tabContent.setName(f.getAbsolutePath());
 				tabContent.setBounds(getBounds());
 				JEditorPane editor = new JEditorPane();
 				editor.setEditorKit(new NumberedEditorKit());
-				editor.setText(buffer);
+				editor.setText(opened.getContents());
 				editor.setBounds(tabContent.getBounds());
 				editor.validate();
+				editorWindows.add(editor);
 				tabContent.add(editor);
 				tabContent.validate();
 				tabs.add(f.getName(),tabContent);
-				fr.close();
+				
 				return tabContent;
 			
 			} catch (FileNotFoundException e)
 			{
 				return null;
-			} catch (IOException e) {
+			} catch (IOException e)
+			{
 				return null;
 			}
 		} else return null;
