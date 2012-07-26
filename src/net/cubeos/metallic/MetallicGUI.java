@@ -61,14 +61,7 @@ public class MetallicGUI extends JFrame {
 		openButton.setShortcut(new MenuShortcut(KeyEvent.VK_O));
 		
 		openButton.addActionListener(new ActionListener() {public void actionPerformed(ActionEvent e) {
-			JFileChooser chooser = new JFileChooser("Open");
-			int returnVal = chooser.showOpenDialog(getContentPane());
-			if (returnVal==JFileChooser.APPROVE_OPTION)
-			{
-				JPanel newTab = openTab(chooser.getSelectedFile());
-				if (newTab != null) tabs.addTab(chooser.getSelectedFile().getName(), newTab);
-				else JOptionPane.showMessageDialog(getContentPane(), "Unable to open file.", "Error", JOptionPane.ERROR_MESSAGE);
-			}
+			doOpenFile();
 		}});
 		fileMenu.add(openButton);
 		
@@ -78,28 +71,14 @@ public class MetallicGUI extends JFrame {
 		saveButton.setShortcut(new MenuShortcut(KeyEvent.VK_S));	//TODO add save handler
 		
 		saveButton.addActionListener(new ActionListener() {public void actionPerformed(ActionEvent e) {
-			JFileChooser chooser = new JFileChooser("Save as...");
-			int returnVal = chooser.showSaveDialog(getContentPane());
-			if (returnVal==JFileChooser.APPROVE_OPTION)
-			{
-				try {
-					FileManager.getFileInfo(chooser.getSelectedFile().getAbsolutePath()).save(getCurrentTextPane().getText());
-				} catch(FileModifiedException fme)
-				{
-					JOptionPane.showConfirmDialog(getContentPane(), "This file has been modified since you opened it. Are you sure you want to continue?", "Confirm file overwrite",JOptionPane.QUESTION_MESSAGE);
-				} catch (SecurityException se) {
-					JOptionPane.showMessageDialog(getContentPane(), "Unable to save file - Permission denied.", "Error", JOptionPane.ERROR_MESSAGE);
-				} catch (IOException ioe) {
-					JOptionPane.showMessageDialog(getContentPane(), "Unable to open file.", "Error", JOptionPane.ERROR_MESSAGE);
-				}
-			}
+			doSaveFile();
 		}});
 		fileMenu.add(saveButton);
 		
 		MenuItem saveAsButton = new MenuItem("Save as...");
 		saveAsButton.setShortcut(new MenuShortcut(KeyEvent.VK_S,true));
 		
-		saveAsButton.addActionListener(new ActionListener() {public void actionPerformed(ActionEvent e) {
+		saveAsButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e) {
 			JFileChooser chooser = new JFileChooser("Save as...");
 			int returnVal = chooser.showSaveDialog(getContentPane());
 			if (returnVal==JFileChooser.APPROVE_OPTION) System.out.print("User saved as " + chooser.getSelectedFile().getName());
@@ -112,14 +91,55 @@ public class MetallicGUI extends JFrame {
 		setVisible(true);
 	}
 	
+	private void doOpenFile()
+	{
+		JFileChooser chooser = new JFileChooser("Open");
+		int returnVal = chooser.showOpenDialog(getContentPane());
+		if (returnVal==JFileChooser.APPROVE_OPTION)
+		{
+			JPanel newTab = openTab(chooser.getSelectedFile());
+			if (newTab != null) tabs.addTab(chooser.getSelectedFile().getName(), newTab);
+			else JOptionPane.showMessageDialog(getContentPane(), "Unable to open file.", "Error", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+	
+	private void doSaveFile()
+	{
+		try {
+			getCurrentFileInfo().save(getCurrentTextPane().getText());
+		} catch(FileModifiedException fme)
+		{
+			int overwriteReturn = JOptionPane.showConfirmDialog(getContentPane(), "This file has been modified since you opened it. Are you sure you want to continue?", "Confirm file overwrite",JOptionPane.OK_CANCEL_OPTION);
+			if (overwriteReturn==JOptionPane.OK_OPTION)
+			{
+				try {
+					getCurrentFileInfo().forceSave(getCurrentTextPane().getText());
+				} catch (SecurityException e) {
+					JOptionPane.showMessageDialog(getContentPane(), "Unable to save file: Permission denied.", "Error", JOptionPane.ERROR_MESSAGE);
+				} catch (IOException e) {
+					JOptionPane.showMessageDialog(getContentPane(), "Unable to open file.", "Error", JOptionPane.ERROR_MESSAGE);
+				}
+			}
+		} catch (SecurityException se) {
+			JOptionPane.showMessageDialog(getContentPane(), "Unable to save file: Permission denied.", "Error", JOptionPane.ERROR_MESSAGE);
+		} catch (IOException ioe) {
+			JOptionPane.showMessageDialog(getContentPane(), "Unable to open file.", "Error", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	public FileInfo getCurrentFileInfo()
+	{
+		return fileByIndex.get(getCurrentTabIndex());
+	}
+	
 	public JEditorPane getCurrentTextPane()
 	{
-		return editorWindows.get(getCurrentTab());
+		return editorWindows.get(getCurrentTabIndex());
 	}
 	
 	public boolean saveTab()
 	{
-		return saveTab(getCurrentTab());
+		return saveTab(getCurrentTabIndex());
 	}
 	
 	public boolean saveTab(int index)
@@ -132,7 +152,7 @@ public class MetallicGUI extends JFrame {
 		return FileManager.getFileInfo(filePath);
 	}
 	
-	public int getCurrentTab()
+	public int getCurrentTabIndex()
 	{
 		return tabs.getSelectedIndex();
 	}
@@ -153,6 +173,7 @@ public class MetallicGUI extends JFrame {
 				editor.setBounds(tabContent.getBounds());
 				editor.validate();
 				editorWindows.add(editor);
+				fileByIndex.add(opened);
 				tabContent.add(editor);
 				tabContent.validate();
 				tabs.add(f.getName(),tabContent);

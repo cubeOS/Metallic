@@ -48,14 +48,24 @@ public class FileInfo
 		return buffer;
 	}
 	
-	public void save(String contents) throws IOException, SecurityException, FileModifiedException
+	public void forceSave(String contents) throws IOException, SecurityException
+	{
+		try {
+			save(contents,true);
+		} catch (FileModifiedException e)
+		{
+			//do nothing cause we don't care about this and it shouldn't actually happen
+		}
+	}
+	
+	public void save(String contents) throws SecurityException, IOException, FileModifiedException
 	{
 		save(contents,false);
 	}
 	
-	public void save(String contents, boolean override) throws IOException, SecurityException, FileModifiedException
+	private void save(String contents, boolean overwrite) throws IOException, SecurityException, FileModifiedException
 	{
-		if (wasModifiedExternally() && !override) throw new FileModifiedException("File was modified by another program");
+		if (wasModifiedExternally() && !overwrite) throw new FileModifiedException("File was modified by another program");
 		FileWriter fw = new FileWriter(file);
 		fw.write(contents);
 		fw.close();
